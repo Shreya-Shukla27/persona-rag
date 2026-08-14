@@ -187,6 +187,4 @@ Everything provider-specific lives in `src/rag.py::answer_question()` - swap the
 
 Built as a project demonstrating: RAG pipelines · Local embeddings · Prompt-layered persona design · Honesty guardrails · Streamlit UI · Groq inference
 
-## License
 
-MIT - do whatever you'd like with it.
