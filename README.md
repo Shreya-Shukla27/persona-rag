@@ -1,132 +1,192 @@
-# Persona RAG — Chat With Your Docs, In Character
+# 📚 Persona RAG — Chat With Your Docs, In Character
 
-A RAG chatbot that answers questions **strictly from documents you upload**,
-in a personality you choose (grumpy expert, Socratic tutor, pirate librarian...),
-and admits — in character — when the answer isn't in the docs.
+> A RAG chatbot that answers questions strictly from documents you upload — in a personality you choose. No hallucinations: if the docs don't cover it, the bot says so, in character.
 
-🔗 **Live demo:** https://persona-rag-be2flrecnr9dbfg85hpqlh.streamlit.app/
+**Backend / Core**  
+![Python](https://img.shields.io/badge/Python_3.11-3776AB?style=flat&logo=python&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)
+![ChromaDB](https://img.shields.io/badge/ChromaDB-121212?style=flat&logo=databricks&logoColor=white)
 
-## Project layout
+**AI**  
+![Groq](https://img.shields.io/badge/Groq_API-F55036?style=flat&logo=groq&logoColor=white)
+![Llama](https://img.shields.io/badge/Llama_3.3_70B-0467DF?style=flat&logo=meta&logoColor=white)
+![Sentence Transformers](https://img.shields.io/badge/sentence--transformers-FFD21E?style=flat&logo=huggingface&logoColor=black)
 
-```
-persona_rag/
-├── src/
-│   ├── ingest.py        # PDF/txt loading + chunking
-│   ├── embed_store.py   # ChromaDB + sentence-transformers wrapper
-│   ├── personas.py      # persona system prompts
-│   ├── rag.py           # retrieval -> prompt -> Claude API
-│   └── app.py           # Streamlit UI
-├── scripts/
-│   └── test_retrieval.py  # sanity-check retrieval without calling the LLM
-├── data/                 # drop sample docs here for testing (gitignored)
-├── requirements.txt
-├── .env.example
-└── README.md
-```
+**Docs**  
+![pypdf](https://img.shields.io/badge/pypdf-8A2BE2?style=flat)
 
-This mirrors the build plan: ingest → embed/store → retrieval test → basic RAG
-→ persona layer → fallback handling → UI. No LangChain/LlamaIndex — everything
-here is hand-rolled and short enough to read end-to-end.
+**Deployment**  
+![Streamlit Cloud](https://img.shields.io/badge/Streamlit_Cloud-FF4B4B?style=flat&logo=streamlit&logoColor=white)
 
-## Setup
+---
+
+## 🚀 Live Demo
+
+|                           | Link                                                                                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **App (Streamlit Cloud)** | [persona-rag-be2flrecnr9dbfg85hpqlh.streamlit.app](https://persona-rag-be2flrecnr9dbfg85hpqlh.streamlit.app/) |
+
+> **Note:** Free-tier Groq API is rate-limited (not unlimited). If the app is slow to respond during heavy use, that's why.
+
+---
+
+## Features
+
+- **Document upload** — PDF, TXT, or MD files get chunked and embedded automatically
+- **Grounded answers only** — every response is built strictly from retrieved chunks of _your_ documents, never outside knowledge
+- **4 personas, switchable live** — Grumpy Expert, Socratic Tutor, Pirate Librarian, Plain & Neutral
+- **Honest fallback** — if the docs don't cover a question, the bot admits it, in character, instead of guessing
+- **Source citations** — every answer shows which chunk(s) it came from, with similarity scores, expandable per message
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.10+
+- A free Groq API key (no credit card) — [console.groq.com](https://console.groq.com)
+
+### Setup
 
 ```bash
-cd persona_rag
+git clone https://github.com/Shreya-Shukla27/persona-rag.git
+cd persona-rag
+
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Mac/Linux
 
 pip install -r requirements.txt
-
-cp .env.example .env
-# then edit .env and paste your GROQ_API_KEY (free, no card, from console.groq.com)
 ```
 
-First run will download the local embedding model (`all-MiniLM-L6-v2`, ~80MB)
-via sentence-transformers — this happens once and is cached locally.
-
-## Try retrieval first (no API key needed)
-
-Before wiring up the LLM, confirm chunking + embedding + retrieval actually
-pulls back sensible content:
+**.env file:**
 
 ```bash
-python scripts/test_retrieval.py data/your_file.pdf "some question about it"
+copy .env.example .env       # Windows
+# cp .env.example .env       # Mac/Linux
 ```
 
-You should see the top-k chunks printed with similarity scores. If the top
-hits look irrelevant, that's a chunking/embedding issue to fix before moving
-on to the LLM layer.
+```env
+GROQ_API_KEY=gsk_your_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
+EMBEDDING_MODEL=all-MiniLM-L6-v2
+```
 
-## Run the app
+### Run
 
 ```bash
 streamlit run src/app.py
 ```
 
-Then in the browser:
+Open the URL it prints (usually `http://localhost:8501`).
 
-1. Paste your Groq API key in the sidebar (or rely on `.env`).
-2. Upload one or more PDF/TXT files and click **Ingest documents**.
-3. Pick a persona from the dropdown.
-4. Ask questions in the chat box. Each answer shows an expandable **Sources**
-   panel with the retrieved chunks and similarity scores.
+---
 
-## How the honesty guardrail works
+## How to Use
 
-Every persona's system prompt gets the same non-negotiable rules appended
-(`src/rag.py::HONESTY_RULES`):
+1. Paste your Groq API key in the sidebar (skip this if you set `.env`)
+2. Upload a PDF/TXT/MD file and click **Ingest documents**
+3. Pick a persona from the dropdown
+4. Ask a question in the chat box
+5. Expand **Sources used** under any answer to see exactly which chunks it pulled from, and how similar they were
 
-- Answer **only** from the retrieved context.
-- If the context doesn't cover the question, say so **in character** instead
-  of guessing.
-- Character voice never overrides accuracy.
+---
 
-Retrieval also computes a rough similarity score; if the best match is below
-`RELEVANCE_FLOOR` (see `rag.py`), that's a signal the docs likely don't cover
-the question at all — useful for future confidence-score work.
+## Architecture
 
-## Adding a persona
-
-Add an entry to `PERSONAS` in `src/personas.py`:
-
-```python
-"Noir Detective": {
-    "emoji": "🕵️",
-    "description": "Answers like it's solving a case.",
-    "system_prompt": "You are a hardboiled noir detective narrating your findings...",
-    "fallback_style": "Say, in a noir voice, that the trail goes cold — the case files don't cover this.",
-},
+```text
+persona_rag/
+├── src/
+│   ├── ingest.py        # PDF/txt loading + word-based chunking (500/50 overlap)
+│   ├── embed_store.py   # ChromaDB + sentence-transformers wrapper
+│   ├── personas.py      # persona system prompts + honesty fallback style
+│   ├── rag.py            # retrieval → prompt build → Groq API call
+│   └── app.py             # Streamlit UI (upload, persona picker, chat, sources)
+├── scripts/
+│   └── test_retrieval.py  # sanity-check retrieval without hitting the LLM
+├── data/                   # sample docs for local testing
+├── requirements.txt
+├── .env.example
+└── README.md
 ```
 
-It'll show up in the dropdown automatically.
+No LangChain or LlamaIndex — the whole pipeline is hand-rolled in a few hundred lines, so every step is easy to trace end-to-end.
 
-## Stretch features (not yet built)
+---
 
-These are natural next steps once the MVP above is working, per the original
-build plan:
+## How the Pipeline Works
 
-- **Confidence score UI** — the `similarity` value is already computed per
-  chunk in `embed_store.py`; surface it more prominently (e.g. a color-coded
-  badge) instead of just in the sources expander.
-- **User-defined custom personas** — add a text box in the sidebar that lets
-  users type their own `system_prompt`/`fallback_style` and appends it to
-  `PERSONAS` at runtime.
-- **Real chat memory** — `rag.answer_question` already accepts a
-  `chat_history` list of prior `{role, content}` messages; wire
-  `st.session_state.chat` into it so follow-up questions have context.
-- **Persona-specific formatting enforcement** — e.g. a regex/post-process
-  step that nudges pirate-speak consistency, or few-shot examples in the
-  system prompt.
-- **Save/reload sessions** — persist `st.session_state.chat` and the Chroma
-  collection to disk/session files so a browser refresh doesn't lose history.
+```
+Upload docs → chunk (500 words, 50 overlap) → embed locally → store in ChromaDB
+                                                        ↓
+                        Your question → embed → retrieve top-k similar chunks
+                                                        ↓
+              [persona system prompt] + [honesty rules] + [retrieved chunks] + [question]
+                                                        ↓
+                                      Groq LLM (Llama 3.3 70B)
+                                                        ↓
+                                  Answer + sources, in persona's voice
+```
 
-## Notes / gotchas
+1. **Chunking** — word-count based (not token-based), 500 words per chunk with 50-word overlap, page numbers preserved for PDFs
+2. **Embedding** — `all-MiniLM-L6-v2` via sentence-transformers, runs locally, no API call
+3. **Retrieval** — top-4 chunks by cosine similarity via ChromaDB
+4. **Honesty guardrail** — every persona's system prompt gets the same non-negotiable rules appended: answer only from context, admit when the docs don't cover it, persona voice never overrides accuracy
+5. **Generation** — Groq's OpenAI-style chat completions API, system prompt + retrieved context + question
 
-- Chunking is word-count based (500 words, 50-word overlap), not
-  token-based — simple and dependency-free, but not exactly token-accurate
-  for very dense text. Fine for an MVP.
-- `VectorStore` persists to `./chroma_db` by default, so ingested docs
-  survive app restarts. Use **Clear all documents** in the sidebar (or
-  delete the folder) to reset.
-- Similarity scores are `1 - cosine_distance`, not calibrated probabilities
-  — treat them as relative, not absolute.
+---
+
+## Personas
+
+| Persona             | Voice                                                    |
+| ------------------- | -------------------------------------------------------- |
+| 😤 Grumpy Expert    | Brilliant, impatient, mildly annoyed you're asking       |
+| 🤔 Socratic Tutor   | Answers with guiding questions, not lectures             |
+| 🏴‍☠️ Pirate Librarian | Nautical metaphors, "arrr", still a stickler for sources |
+| 📄 Plain & Neutral  | No flavor — just clear, direct answers                   |
+
+**Add your own:** one new entry in the `PERSONAS` dict in `src/personas.py` — no other code changes needed.
+
+---
+
+## Extending
+
+**Add a new persona:**  
+Edit `PERSONAS` in `src/personas.py` — add `system_prompt` and `fallback_style` keys, it appears in the dropdown automatically.
+
+**Change chunk size/overlap:**  
+Edit `chunk_size` / `overlap` defaults in `chunk_text()` in `src/ingest.py`.
+
+**Change how many chunks get retrieved:**  
+Edit `TOP_K` in `src/rag.py`.
+
+**Swap the LLM provider:**  
+Everything provider-specific lives in `src/rag.py::answer_question()` — swap the `Groq` client for another OpenAI-compatible client and adjust the message format if needed.
+
+---
+
+## Known Limitations
+
+- Chunking is word-count based, not token-based — fine for English prose, less precise for dense technical text
+- Similarity scores (`1 - cosine_distance`) are relative, not calibrated probabilities
+- Groq's free tier is rate-limited (not unlimited requests)
+- No persistent chat memory yet between questions (see roadmap)
+
+---
+
+## Roadmap
+
+- [ ] Chat memory for natural follow-up questions (`rag.answer_question` already accepts `chat_history`, just needs wiring into `app.py`)
+- [ ] Confidence-score badge in the UI (similarity is already computed per chunk)
+- [ ] User-defined custom personas via a sidebar text box
+- [ ] Persona-specific formatting enforcement (e.g. consistent pirate-speak)
+- [ ] Save/reload past chat sessions
+
+---
+
+Built as a project demonstrating: RAG pipelines · Local embeddings · Prompt-layered persona design · Honesty guardrails · Streamlit UI · Groq inference
+
+## License
+
+MIT — do whatever you'd like with it.
