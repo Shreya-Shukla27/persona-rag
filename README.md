@@ -1,6 +1,6 @@
-# 📚 Persona RAG — Chat With Your Docs, In Character
+# 📚 Persona RAG - Chat With Your Docs, In Character
 
-> A RAG chatbot that answers questions strictly from documents you upload — in a personality you choose. No hallucinations: if the docs don't cover it, the bot says so, in character.
+> A RAG chatbot that answers questions strictly from documents you upload - in a personality you choose. No hallucinations: if the docs don't cover it, the bot says so, in character.
 
 **Backend / Core**  
 ![Python](https://img.shields.io/badge/Python_3.11-3776AB?style=flat&logo=python&logoColor=white)
@@ -32,11 +32,11 @@
 
 ## Features
 
-- **Document upload** — PDF, TXT, or MD files get chunked and embedded automatically
-- **Grounded answers only** — every response is built strictly from retrieved chunks of _your_ documents, never outside knowledge
-- **4 personas, switchable live** — Grumpy Expert, Socratic Tutor, Pirate Librarian, Plain & Neutral
-- **Honest fallback** — if the docs don't cover a question, the bot admits it, in character, instead of guessing
-- **Source citations** — every answer shows which chunk(s) it came from, with similarity scores, expandable per message
+- **Document upload** - PDF, TXT, or MD files get chunked and embedded automatically
+- **Grounded answers only** - every response is built strictly from retrieved chunks of _your_ documents, never outside knowledge
+- **4 personas, switchable live** - Grumpy Expert, Socratic Tutor, Pirate Librarian, Plain & Neutral
+- **Honest fallback** - if the docs don't cover a question, the bot admits it, in character, instead of guessing
+- **Source citations** - every answer shows which chunk(s) it came from, with similarity scores, expandable per message
 
 ---
 
@@ -45,7 +45,7 @@
 ### Prerequisites
 
 - Python 3.10+
-- A free Groq API key (no credit card) — [console.groq.com](https://console.groq.com)
+- A free Groq API key (no credit card) - [console.groq.com](https://console.groq.com)
 
 ### Setup
 
@@ -111,7 +111,7 @@ persona_rag/
 └── README.md
 ```
 
-No LangChain or LlamaIndex — the whole pipeline is hand-rolled in a few hundred lines, so every step is easy to trace end-to-end.
+No LangChain or LlamaIndex - the whole pipeline is hand-rolled in a few hundred lines, so every step is easy to trace end-to-end.
 
 ---
 
@@ -129,11 +129,11 @@ Upload docs → chunk (500 words, 50 overlap) → embed locally → store in Chr
                                   Answer + sources, in persona's voice
 ```
 
-1. **Chunking** — word-count based (not token-based), 500 words per chunk with 50-word overlap, page numbers preserved for PDFs
-2. **Embedding** — `all-MiniLM-L6-v2` via sentence-transformers, runs locally, no API call
-3. **Retrieval** — top-4 chunks by cosine similarity via ChromaDB
-4. **Honesty guardrail** — every persona's system prompt gets the same non-negotiable rules appended: answer only from context, admit when the docs don't cover it, persona voice never overrides accuracy
-5. **Generation** — Groq's OpenAI-style chat completions API, system prompt + retrieved context + question
+1. **Chunking** - word-count based (not token-based), 500 words per chunk with 50-word overlap, page numbers preserved for PDFs
+2. **Embedding** - `all-MiniLM-L6-v2` via sentence-transformers, runs locally, no API call
+3. **Retrieval** - top-4 chunks by cosine similarity via ChromaDB
+4. **Honesty guardrail** - every persona's system prompt gets the same non-negotiable rules appended: answer only from context, admit when the docs don't cover it, persona voice never overrides accuracy
+5. **Generation** - Groq's OpenAI-style chat completions API, system prompt + retrieved context + question
 
 ---
 
@@ -144,16 +144,16 @@ Upload docs → chunk (500 words, 50 overlap) → embed locally → store in Chr
 | 😤 Grumpy Expert    | Brilliant, impatient, mildly annoyed you're asking       |
 | 🤔 Socratic Tutor   | Answers with guiding questions, not lectures             |
 | 🏴‍☠️ Pirate Librarian | Nautical metaphors, "arrr", still a stickler for sources |
-| 📄 Plain & Neutral  | No flavor — just clear, direct answers                   |
+| 📄 Plain & Neutral  | No flavor - just clear, direct answers                   |
 
-**Add your own:** one new entry in the `PERSONAS` dict in `src/personas.py` — no other code changes needed.
+**Add your own:** one new entry in the `PERSONAS` dict in `src/personas.py` - no other code changes needed.
 
 ---
 
 ## Extending
 
 **Add a new persona:**  
-Edit `PERSONAS` in `src/personas.py` — add `system_prompt` and `fallback_style` keys, it appears in the dropdown automatically.
+Edit `PERSONAS` in `src/personas.py` - add `system_prompt` and `fallback_style` keys, it appears in the dropdown automatically.
 
 **Change chunk size/overlap:**  
 Edit `chunk_size` / `overlap` defaults in `chunk_text()` in `src/ingest.py`.
@@ -162,13 +162,13 @@ Edit `chunk_size` / `overlap` defaults in `chunk_text()` in `src/ingest.py`.
 Edit `TOP_K` in `src/rag.py`.
 
 **Swap the LLM provider:**  
-Everything provider-specific lives in `src/rag.py::answer_question()` — swap the `Groq` client for another OpenAI-compatible client and adjust the message format if needed.
+Everything provider-specific lives in `src/rag.py::answer_question()` - swap the `Groq` client for another OpenAI-compatible client and adjust the message format if needed.
 
 ---
 
 ## Known Limitations
 
-- Chunking is word-count based, not token-based — fine for English prose, less precise for dense technical text
+- Chunking is word-count based, not token-based - fine for English prose, less precise for dense technical text
 - Similarity scores (`1 - cosine_distance`) are relative, not calibrated probabilities
 - Groq's free tier is rate-limited (not unlimited requests)
 - No persistent chat memory yet between questions (see roadmap)
@@ -189,4 +189,4 @@ Built as a project demonstrating: RAG pipelines · Local embeddings · Prompt-la
 
 ## License
 
-MIT — do whatever you'd like with it.
+MIT - do whatever you'd like with it.
