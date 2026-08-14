@@ -4,6 +4,8 @@ A RAG chatbot that answers questions **strictly from documents you upload**,
 in a personality you choose (grumpy expert, Socratic tutor, pirate librarian...),
 and admits — in character — when the answer isn't in the docs.
 
+🔗 **Live demo:** https://persona-rag-be2flrecnr9dbfg85hpqlh.streamlit.app/
+
 ## Project layout
 
 ```
@@ -62,6 +64,7 @@ streamlit run src/app.py
 ```
 
 Then in the browser:
+
 1. Paste your Groq API key in the sidebar (or rely on `.env`).
 2. Upload one or more PDF/TXT files and click **Ingest documents**.
 3. Pick a persona from the dropdown.
