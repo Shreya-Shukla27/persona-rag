@@ -23,143 +23,168 @@ load_dotenv()
 
 st.set_page_config(page_title="Persona RAG", page_icon="📚", layout="wide")
 
-# ---------- Theme: reading-room / archive ----------
-# Parchment + ink main area, leather sidebar, brass accents.
-# Source citations styled like library index cards.
+# ---------- Theme: light or dark, single accent color ----------
 
-CUSTOM_CSS = """
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = False
+
+THEMES = {
+    "light": {
+        "bg": "#FFFFFF",
+        "sidebar_bg": "#F7F8FA",
+        "card_bg": "#FFFFFF",
+        "text": "#1F2430",
+        "muted": "#6B7280",
+        "accent": "#4F46E5",
+        "accent_hover": "#4338CA",
+        "border": "#E5E7EB",
+    },
+    "dark": {
+        "bg": "#0F1115",
+        "sidebar_bg": "#16181D",
+        "card_bg": "#1A1C22",
+        "text": "#E5E7EB",
+        "muted": "#9CA3AF",
+        "accent": "#6366F1",
+        "accent_hover": "#818CF8",
+        "border": "#2D2F36",
+    },
+}
+
+_t = THEMES["dark" if st.session_state.dark_mode else "light"]
+
+CUSTOM_CSS_TEMPLATE = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Serif+4:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-    --parchment: #F6F1E4;
-    --ink: #2B2118;
-    --leather: #3B2A20;
-    --brass: #B08D57;
-    --forest: #3F5D4E;
-    --rust: #8C4A34;
+    --bg: %(bg)s;
+    --sidebar-bg: %(sidebar_bg)s;
+    --card-bg: %(card_bg)s;
+    --text: %(text)s;
+    --muted: %(muted)s;
+    --accent: %(accent)s;
+    --accent-hover: %(accent_hover)s;
+    --border: %(border)s;
 }
 
-/* Main canvas */
 .stApp {
-    background-color: var(--parchment);
+    background-color: var(--bg);
 }
 [data-testid="stAppViewContainer"] *:not([data-testid*="Icon"]), [data-testid="stMain"] *:not([data-testid*="Icon"]) {
-    font-family: 'Source Serif 4', Georgia, serif;
+    font-family: 'Inter', -apple-system, sans-serif;
 }
 [data-testid="stAppViewContainer"], [data-testid="stMain"] {
-    color: var(--ink);
+    color: var(--text);
 }
 
-/* Sidebar: quieter, cleaner dark panel (not full leather-brown) */
+/* Sidebar: light, clean, minimal */
 [data-testid="stSidebar"] {
-    background-color: #23262B;
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
 }
-/* Apply custom font + color to text elements only -- explicitly skip icon
-   elements (data-testid containing "Icon"), since those render glyphs via
-   a special icon font and break if font-family gets overridden. */
 [data-testid="stSidebar"] *:not([data-testid*="Icon"]) {
-    color: #E8E6E1 !important;
-    font-family: 'Source Serif 4', Georgia, serif !important;
+    color: var(--text) !important;
+    font-family: 'Inter', -apple-system, sans-serif !important;
 }
 [data-testid="stSidebar"] [data-testid*="Icon"] {
-    color: #E8E6E1 !important;
+    color: var(--text) !important;
 }
 [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-    font-family: 'Fraunces', Georgia, serif !important;
-    color: #FFFFFF !important;
-    letter-spacing: 0.01em;
+    font-weight: 700 !important;
+    color: var(--text) !important;
 }
 [data-testid="stSidebar"] hr {
-    border-color: rgba(232, 230, 225, 0.15);
+    border-color: var(--border);
 }
 
-/* Persona header */
+/* Headers */
 h1, h2 {
-    font-family: 'Fraunces', Georgia, serif !important;
-    color: var(--ink) !important;
-    letter-spacing: -0.01em;
+    font-family: 'Inter', -apple-system, sans-serif !important;
+    color: var(--text) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em;
 }
 
-/* Buttons: brass accent */
+/* Buttons: single accent color */
 .stButton > button {
-    background-color: var(--brass);
-    color: var(--ink);
+    background-color: var(--accent);
+    color: #FFFFFF;
     border: none;
-    border-radius: 4px;
-    font-family: 'Source Serif 4', Georgia, serif;
+    border-radius: 6px;
+    font-family: 'Inter', -apple-system, sans-serif;
     font-weight: 600;
     transition: background-color 0.15s ease;
 }
 .stButton > button:hover {
-    background-color: #C9A876;
-    color: var(--ink);
+    background-color: var(--accent-hover);
+    color: #FFFFFF;
 }
 
 /* Chat messages */
 [data-testid="stChatMessage"] {
-    background-color: #FFFFFF;
-    border: 1px solid rgba(43, 33, 24, 0.1);
-    border-radius: 8px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.25rem 0.5rem;
 }
 
-/* Chat input box */
+/* Chat input */
 [data-testid="stChatInput"] textarea {
-    font-family: 'Source Serif 4', Georgia, serif;
+    font-family: 'Inter', -apple-system, sans-serif;
 }
 
-/* Sources expander -> library index card */
+/* Sources expander: simple card, no dashed borders or stamps */
 [data-testid="stExpander"] {
-    border: 1px dashed var(--rust);
-    border-radius: 6px;
-    background-color: #FBF7EC;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: var(--sidebar-bg);
 }
 [data-testid="stExpander"] summary {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Inter', -apple-system, sans-serif;
     font-size: 0.85rem;
-    color: var(--rust);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    color: var(--accent);
+    font-weight: 600;
 }
 
-/* Similarity scores + source metadata in mono, like a catalog stamp */
+/* Source cards: simple, minimal accent border, no ledger/stamp styling */
 .source-card {
-    font-family: 'Source Serif 4', Georgia, serif;
-    border-left: 3px solid var(--brass);
-    padding: 0.5rem 0.75rem;
+    font-family: 'Inter', -apple-system, sans-serif;
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 0.6rem 0.85rem;
     margin-bottom: 0.5rem;
-    background-color: #FFFDF8;
+    background-color: var(--card-bg);
 }
 .source-meta {
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Inter', -apple-system, sans-serif;
     font-size: 0.78rem;
-    color: var(--rust);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: var(--accent);
 }
 .source-text {
-    font-size: 0.92rem;
-    color: var(--ink);
-    opacity: 0.85;
-    margin-top: 0.25rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+    line-height: 1.5;
 }
 
 /* File uploader */
 [data-testid="stFileUploader"] {
-    border: 1px solid rgba(246, 241, 228, 0.3);
-    border-radius: 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
 }
 
-/* Persona caption under selectbox */
+/* Persona caption + tagline */
 .persona-caption {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.8rem;
-    color: #C9A876;
-    font-style: italic;
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 0.82rem;
+    color: var(--muted);
 }
 </style>
 """
+
+CUSTOM_CSS = CUSTOM_CSS_TEMPLATE % _t
 
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
@@ -205,6 +230,7 @@ def render_source_card(i: int, s: dict):
 # ---------- Sidebar: setup, upload, persona ----------
 
 with st.sidebar:
+    st.toggle("🌙 Dark mode", key="dark_mode")
     st.title("📚 Persona RAG")
     st.caption("Chat with your docs. In character. Without making things up.")
 
@@ -281,8 +307,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    f'<p style="font-family:\'Source Serif 4\',Georgia,serif; font-size:1.05rem; '
-    f'color:var(--forest); margin-top:-0.5rem; margin-bottom:1rem;">'
+    f'<p style="font-family:Inter,-apple-system,sans-serif; font-size:1rem; '
+    f'color:#6B7280; margin-top:-0.5rem; margin-bottom:1rem;">'
     f'{PERSONAS[persona_name]["tagline"]} '
     f'Every persona only answers from your uploaded documents — never outside knowledge.</p>',
     unsafe_allow_html=True,
