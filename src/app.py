@@ -44,26 +44,34 @@ CUSTOM_CSS = """
 .stApp {
     background-color: var(--parchment);
 }
-[data-testid="stAppViewContainer"], [data-testid="stMain"] {
+[data-testid="stAppViewContainer"] *:not([data-testid*="Icon"]), [data-testid="stMain"] *:not([data-testid*="Icon"]) {
     font-family: 'Source Serif 4', Georgia, serif;
+}
+[data-testid="stAppViewContainer"], [data-testid="stMain"] {
     color: var(--ink);
 }
 
-/* Sidebar: leather-bound ledger feel */
+/* Sidebar: quieter, cleaner dark panel (not full leather-brown) */
 [data-testid="stSidebar"] {
-    background-color: var(--leather);
+    background-color: #23262B;
 }
-[data-testid="stSidebar"] * {
-    color: #EFE6D8 !important;
-    font-family: 'Source Serif 4', Georgia, serif;
+/* Apply custom font + color to text elements only -- explicitly skip icon
+   elements (data-testid containing "Icon"), since those render glyphs via
+   a special icon font and break if font-family gets overridden. */
+[data-testid="stSidebar"] *:not([data-testid*="Icon"]) {
+    color: #E8E6E1 !important;
+    font-family: 'Source Serif 4', Georgia, serif !important;
+}
+[data-testid="stSidebar"] [data-testid*="Icon"] {
+    color: #E8E6E1 !important;
 }
 [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
     font-family: 'Fraunces', Georgia, serif !important;
-    color: #F6F1E4 !important;
-    letter-spacing: 0.02em;
+    color: #FFFFFF !important;
+    letter-spacing: 0.01em;
 }
 [data-testid="stSidebar"] hr {
-    border-color: rgba(246, 241, 228, 0.2);
+    border-color: rgba(232, 230, 225, 0.15);
 }
 
 /* Persona header */
@@ -270,6 +278,13 @@ with st.sidebar:
 
 st.markdown(
     f"<h1>{PERSONAS[persona_name]['emoji']} {persona_name}</h1>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    f'<p style="font-family:\'Source Serif 4\',Georgia,serif; font-size:1.05rem; '
+    f'color:var(--forest); margin-top:-0.5rem; margin-bottom:1rem;">'
+    f'{PERSONAS[persona_name]["tagline"]} '
+    f'Every persona only answers from your uploaded documents — never outside knowledge.</p>',
     unsafe_allow_html=True,
 )
 
