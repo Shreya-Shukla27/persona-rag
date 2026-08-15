@@ -7,6 +7,7 @@ Run with:  streamlit run src/app.py
 
 import os
 import sys
+import hashlib
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -18,6 +19,7 @@ from src.ingest import load_and_chunk
 from src.embed_store import VectorStore
 from src.personas import PERSONAS, DEFAULT_PERSONA
 from src.rag import answer_question
+from src.voice import transcribe_audio, render_speak_button
 
 load_dotenv()
 
@@ -314,15 +316,35 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-for msg in st.session_state.chat:
+for i, msg in enumerate(st.session_state.chat):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+        if msg["role"] == "assistant":
+            render_speak_button(msg["content"], persona_name, key=f"hist-{i}")
         if msg.get("sources"):
             with st.expander("Sources consulted"):
-                for i, s in enumerate(msg["sources"], start=1):
-                    render_source_card(i, s)
+                for j, s in enumerate(msg["sources"], start=1):
+                    render_source_card(j, s)
 
-question = st.chat_input("Ask something about your documents...")
+# ---------- Voice input: record a question, transcribed via Groq Whisper ----------
+
+voice_question = None
+audio_value = st.audio_input("🎙️ Or ask by voice")
+if audio_value is not None and active_api_key:
+    audio_bytes = audio_value.getvalue()
+    audio_hash = hashlib.md5(audio_bytes).hexdigest()
+    if st.session_state.get("last_audio_hash") != audio_hash:
+        st.session_state.last_audio_hash = audio_hash
+        with st.spinner("Transcribing..."):
+            try:
+                voice_question = transcribe_audio(audio_bytes, active_api_key)
+                if voice_question:
+                    st.caption(f"🎙️ Heard: \"{voice_question}\"")
+            except Exception as e:
+                st.error(f"Couldn't transcribe that: {e}")
+
+typed_question = st.chat_input("Ask something about your documents...")
+question = typed_question or voice_question
 
 if question:
     if not store.list_sources():
@@ -343,6 +365,7 @@ if question:
                     api_key=active_api_key,
                 )
             st.markdown(result.answer)
+            render_speak_button(result.answer, persona_name, key=f"new-{len(st.session_state.chat)}")
             if result.sources:
                 with st.expander("Sources consulted"):
                     for i, s in enumerate(result.sources, start=1):
