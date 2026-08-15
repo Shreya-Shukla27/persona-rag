@@ -19,8 +19,12 @@ COLLECTION_NAME = "persona_rag_docs"
 
 
 class VectorStore:
-    def __init__(self, persist_dir: str = CHROMA_DIR):
-        self.client = chromadb.PersistentClient(path=persist_dir)
+    def __init__(self, persist_dir: str = CHROMA_DIR, ephemeral: bool = False):
+        if ephemeral:
+            # In-memory client: private per session, no shared disk state
+            self.client = chromadb.EphemeralClient()
+        else:
+            self.client = chromadb.PersistentClient(path=persist_dir)
         self.embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name=EMBEDDING_MODEL
         )

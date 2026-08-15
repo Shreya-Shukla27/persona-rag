@@ -193,11 +193,19 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # ---------- Cached / session resources ----------
 
-@st.cache_resource
-def get_store():
-    return VectorStore()
+def _is_cloud() -> bool:
+    """Detect if the app is running on Streamlit Cloud (shared hosting)."""
+    return bool(os.environ.get("STREAMLIT_SHARING_MODE")) or "streamlit.app" in os.environ.get("HOSTNAME", "")
 
 
+# Each visitor gets their own private store via session_state.
+# On the cloud, ephemeral=True gives each session an in-memory DB
+# so one user's uploads never leak to another user.
+# Locally, ephemeral=False keeps the persistent disk-based DB.
+if "store" not in st.session_state:
+    st.session_state.store = VectorStore(ephemeral=_is_cloud())
+
+store = st.session_state.store
 if "chat" not in st.session_state:
     st.session_state.chat = []  # list of {role, content, sources?}
 
@@ -209,9 +217,6 @@ SERVER_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
 if "user_api_key" not in st.session_state:
     st.session_state.user_api_key = ""
-
-
-store = get_store()
 
 
 def render_source_card(i: int, s: dict):
