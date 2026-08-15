@@ -23,6 +23,138 @@ load_dotenv()
 
 st.set_page_config(page_title="Persona RAG", page_icon="📚", layout="wide")
 
+# ---------- Theme: reading-room / archive ----------
+# Parchment + ink main area, leather sidebar, brass accents.
+# Source citations styled like library index cards.
+
+CUSTOM_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Source+Serif+4:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+    --parchment: #F6F1E4;
+    --ink: #2B2118;
+    --leather: #3B2A20;
+    --brass: #B08D57;
+    --forest: #3F5D4E;
+    --rust: #8C4A34;
+}
+
+/* Main canvas */
+.stApp {
+    background-color: var(--parchment);
+}
+[data-testid="stAppViewContainer"], [data-testid="stMain"] {
+    font-family: 'Source Serif 4', Georgia, serif;
+    color: var(--ink);
+}
+
+/* Sidebar: leather-bound ledger feel */
+[data-testid="stSidebar"] {
+    background-color: var(--leather);
+}
+[data-testid="stSidebar"] * {
+    color: #EFE6D8 !important;
+    font-family: 'Source Serif 4', Georgia, serif;
+}
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+    font-family: 'Fraunces', Georgia, serif !important;
+    color: #F6F1E4 !important;
+    letter-spacing: 0.02em;
+}
+[data-testid="stSidebar"] hr {
+    border-color: rgba(246, 241, 228, 0.2);
+}
+
+/* Persona header */
+h1, h2 {
+    font-family: 'Fraunces', Georgia, serif !important;
+    color: var(--ink) !important;
+    letter-spacing: -0.01em;
+}
+
+/* Buttons: brass accent */
+.stButton > button {
+    background-color: var(--brass);
+    color: var(--ink);
+    border: none;
+    border-radius: 4px;
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-weight: 600;
+    transition: background-color 0.15s ease;
+}
+.stButton > button:hover {
+    background-color: #C9A876;
+    color: var(--ink);
+}
+
+/* Chat messages */
+[data-testid="stChatMessage"] {
+    background-color: #FFFFFF;
+    border: 1px solid rgba(43, 33, 24, 0.1);
+    border-radius: 8px;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Chat input box */
+[data-testid="stChatInput"] textarea {
+    font-family: 'Source Serif 4', Georgia, serif;
+}
+
+/* Sources expander -> library index card */
+[data-testid="stExpander"] {
+    border: 1px dashed var(--rust);
+    border-radius: 6px;
+    background-color: #FBF7EC;
+}
+[data-testid="stExpander"] summary {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--rust);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Similarity scores + source metadata in mono, like a catalog stamp */
+.source-card {
+    font-family: 'Source Serif 4', Georgia, serif;
+    border-left: 3px solid var(--brass);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    background-color: #FFFDF8;
+}
+.source-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--rust);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.source-text {
+    font-size: 0.92rem;
+    color: var(--ink);
+    opacity: 0.85;
+    margin-top: 0.25rem;
+}
+
+/* File uploader */
+[data-testid="stFileUploader"] {
+    border: 1px solid rgba(246, 241, 228, 0.3);
+    border-radius: 6px;
+}
+
+/* Persona caption under selectbox */
+.persona-caption {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.8rem;
+    color: #C9A876;
+    font-style: italic;
+}
+</style>
+"""
+
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
 
 # ---------- Cached / session resources ----------
 
@@ -34,11 +166,32 @@ def get_store():
 if "chat" not in st.session_state:
     st.session_state.chat = []  # list of {role, content, sources?}
 
-if "api_key" not in st.session_state:
-    st.session_state.api_key = os.environ.get("GROQ_API_KEY", "")
+# The server-side key (from .env locally, or Streamlit Secrets when deployed).
+# This is used automatically for API calls but is NEVER shown in the UI,
+# so visitors to a deployed app can't reveal it via the password field's
+# "show" toggle or by viewing the page.
+SERVER_API_KEY = os.environ.get("GROQ_API_KEY", "")
+
+if "user_api_key" not in st.session_state:
+    st.session_state.user_api_key = ""
 
 
 store = get_store()
+
+
+def render_source_card(i: int, s: dict):
+    """Render one retrieved chunk as a library-index-card-styled block."""
+    page = f" · p.{s['page']}" if s.get("page") and s["page"] != -1 else ""
+    preview = s["text"][:400] + ("..." if len(s["text"]) > 400 else "")
+    st.markdown(
+        f"""
+        <div class="source-card">
+            <div class="source-meta">#{i} &nbsp;·&nbsp; {s['source']}{page} &nbsp;·&nbsp; similarity {s['similarity']:.2f}</div>
+            <div class="source-text">{preview}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 # ---------- Sidebar: setup, upload, persona ----------
@@ -48,13 +201,28 @@ with st.sidebar:
     st.caption("Chat with your docs. In character. Without making things up.")
 
     st.subheader("1. API Key")
-    key_input = st.text_input(
-        "Groq API key",
-        value=st.session_state.api_key,
-        type="password",
-        help="Free, no card required: console.groq.com. Or set GROQ_API_KEY in a .env file instead.",
-    )
-    st.session_state.api_key = key_input
+    if SERVER_API_KEY:
+        st.success("Using the app's built-in API key. ✓", icon="🔑")
+        with st.expander("Use your own key instead"):
+            key_input = st.text_input(
+                "Your Groq API key (optional)",
+                value=st.session_state.user_api_key,
+                type="password",
+                help="Leave blank to use the app's built-in key. Get a free key at console.groq.com.",
+            )
+            st.session_state.user_api_key = key_input
+    else:
+        key_input = st.text_input(
+            "Groq API key",
+            value=st.session_state.user_api_key,
+            type="password",
+            help="Free, no card required: console.groq.com. Or set GROQ_API_KEY in a .env file instead.",
+        )
+        st.session_state.user_api_key = key_input
+
+    # Effective key used for API calls: a user-supplied key always wins,
+    # otherwise fall back to the server key (never displayed to the user).
+    active_api_key = st.session_state.user_api_key or SERVER_API_KEY
 
     st.subheader("2. Upload documents")
     uploaded_files = st.file_uploader(
@@ -79,7 +247,7 @@ with st.sidebar:
             store.clear()
             st.rerun()
     else:
-        st.info("No documents indexed yet.")
+        st.info("No documents indexed yet. Upload something above to begin.")
 
     st.subheader("3. Choose a persona")
     persona_name = st.selectbox(
@@ -88,7 +256,10 @@ with st.sidebar:
         index=list(PERSONAS.keys()).index(DEFAULT_PERSONA),
         format_func=lambda p: f"{PERSONAS[p]['emoji']} {p}",
     )
-    st.caption(PERSONAS[persona_name]["description"])
+    st.markdown(
+        f'<div class="persona-caption">{PERSONAS[persona_name]["description"]}</div>',
+        unsafe_allow_html=True,
+    )
 
     if st.button("Clear chat", use_container_width=True):
         st.session_state.chat = []
@@ -97,27 +268,26 @@ with st.sidebar:
 
 # ---------- Main chat area ----------
 
-st.header(f"{PERSONAS[persona_name]['emoji']} {persona_name}")
+st.markdown(
+    f"<h1>{PERSONAS[persona_name]['emoji']} {persona_name}</h1>",
+    unsafe_allow_html=True,
+)
 
 for msg in st.session_state.chat:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if msg.get("sources"):
-            with st.expander("📎 Sources used"):
+            with st.expander("Sources consulted"):
                 for i, s in enumerate(msg["sources"], start=1):
-                    page = f" (page {s['page']})" if s.get("page") and s["page"] != -1 else ""
-                    st.markdown(
-                        f"**{i}. {s['source']}{page}** — similarity {s['similarity']:.2f}"
-                    )
-                    st.caption(s["text"][:400] + ("..." if len(s["text"]) > 400 else ""))
+                    render_source_card(i, s)
 
 question = st.chat_input("Ask something about your documents...")
 
 if question:
     if not store.list_sources():
         st.warning("Upload and ingest at least one document first.")
-    elif not st.session_state.api_key:
-        st.warning("Enter your Anthropic API key in the sidebar first.")
+    elif not active_api_key:
+        st.warning("Enter your Groq API key in the sidebar first.")
     else:
         st.session_state.chat.append({"role": "user", "content": question})
         with st.chat_message("user"):
@@ -129,23 +299,13 @@ if question:
                     question=question,
                     store=store,
                     persona_name=persona_name,
-                    api_key=st.session_state.api_key,
+                    api_key=active_api_key,
                 )
             st.markdown(result.answer)
             if result.sources:
-                with st.expander("📎 Sources used"):
+                with st.expander("Sources consulted"):
                     for i, s in enumerate(result.sources, start=1):
-                        page = (
-                            f" (page {s['page']})"
-                            if s.get("page") and s["page"] != -1
-                            else ""
-                        )
-                        st.markdown(
-                            f"**{i}. {s['source']}{page}** — similarity {s['similarity']:.2f}"
-                        )
-                        st.caption(
-                            s["text"][:400] + ("..." if len(s["text"]) > 400 else "")
-                        )
+                        render_source_card(i, s)
 
         st.session_state.chat.append(
             {
