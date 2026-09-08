@@ -27,10 +27,12 @@ from .embed_store import VectorStore
 from .personas import PERSONAS
 
 MODEL = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
-TOP_K = 4
+# Increased from 4 to 10 for better context and re-ranking opportunities
+TOP_K = 10
+# Raised from 0.25 to 0.45 to filter out weak matches and improve accuracy
 # Similarity below this is treated as "not actually relevant" -- triggers
 # the deterministic canned fallback instead of calling the LLM at all.
-RELEVANCE_FLOOR = 0.25
+RELEVANCE_FLOOR = 0.45
 
 HONESTY_RULES = """\
 CRITICAL RULES (apply regardless of persona voice):
@@ -70,6 +72,29 @@ def _doc_list_str(store: VectorStore, hits: list) -> str:
     return ", ".join(names) if names else "your uploaded documents"
 
 
+def _expand_query(question: str) -> list[str]:
+    """Generate alternative phrasings of the question for better retrieval."""
+    # Use simple, deterministic transformations for consistent results
+    queries = [question]
+    
+    # Query variation 1: Remove question marks and common question words
+    q1 = question.replace("?", "").strip()
+    if q1 != question:
+        queries.append(q1)
+    
+    # Query variation 2: Focus on key nouns/concepts (simple heuristic)
+    # Extract content after "about", "regarding", "tell me about", etc.
+    for phrase in ["about ", "regarding ", "on ", "what is "]:
+        if phrase in question.lower():
+            idx = question.lower().find(phrase)
+            core = question[idx + len(phrase):].strip()
+            if core and core not in queries:
+                queries.append(core)
+                break
+    
+    return queries
+
+
 def answer_question(
     question: str,
     store: VectorStore,
@@ -78,12 +103,28 @@ def answer_question(
     chat_history: List[dict] | None = None,
 ) -> RagAnswer:
     """
-    Retrieve relevant chunks. If confidence is too low, return a canned
-    persona-flavored refusal WITHOUT calling the LLM (reliable, free, fast).
-    Otherwise, build a persona+honesty prompt and call Groq for a real answer.
+    Retrieve relevant chunks using query expansion. If confidence is too low, 
+    return a canned persona-flavored refusal WITHOUT calling the LLM 
+    (reliable, free, fast). Otherwise, build a persona+honesty prompt and 
+    call Groq for a real answer.
+    
+    Query expansion: Search with multiple phrasings and merge results for 
+    better coverage and accuracy.
     """
     persona = PERSONAS[persona_name]
-    hits = store.query(question, top_k=TOP_K)
+    
+    # Perform multi-query retrieval to improve recall
+    all_hits = {}
+    query_variations = _expand_query(question)
+    for q in query_variations:
+        hits = store.query(q, top_k=TOP_K)
+        for hit in hits:
+            hit_key = (hit["source"], hit["text"][:50])  # Unique key per hit
+            if hit_key not in all_hits or hit["similarity"] > all_hits[hit_key]["similarity"]:
+                all_hits[hit_key] = hit
+    
+    # Merge and re-rank by similarity
+    hits = sorted(all_hits.values(), key=lambda h: h["similarity"], reverse=True)[:TOP_K]
 
     best_similarity = max((h["similarity"] for h in hits), default=0.0)
     used_context = best_similarity >= RELEVANCE_FLOOR and len(hits) > 0
@@ -115,7 +156,7 @@ def answer_question(
     response = client.chat.completions.create(
         model=MODEL,
         max_tokens=500,
-        temperature=0.4,
+        temperature=0.2,  # Lowered from 0.4 for more factual, consistent answers
         messages=messages,
     )
 

@@ -13,7 +13,9 @@ from chromadb.utils import embedding_functions
 
 from .ingest import Chunk
 
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+# Upgraded to all-mpnet-base-v2 (768-dim) for better semantic understanding
+# This replaces all-MiniLM-L6-v2 (384-dim) for improved retrieval accuracy
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "all-mpnet-base-v2")
 CHROMA_DIR = os.environ.get("CHROMA_DIR", "chroma_db")
 COLLECTION_NAME = "persona_rag_docs"
 

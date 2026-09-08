@@ -6,3 +6,6 @@ chroma_db/
 data/*
 !data/.gitkeep
 venv/
+frontend/node_modules/
+frontend/dist/
+chroma_db_test/

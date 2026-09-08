@@ -206,18 +206,24 @@ if "store" not in st.session_state:
     st.session_state.store = VectorStore(ephemeral=_is_cloud())
 
 store = st.session_state.store
+# ---------- Session state initialization ----------
+
+# Initialize chat history
 if "chat" not in st.session_state:
     st.session_state.chat = []  # list of {role, content, sources?}
 
-# The server-side key (from .env locally, or Streamlit Secrets when deployed).
+# Initialize user API key
+if "user_api_key" not in st.session_state:
+    st.session_state.user_api_key = ""
+
+# Get the server-side key (from .env locally, or Streamlit Secrets when deployed).
 # This is used automatically for API calls but is NEVER shown in the UI,
 # so visitors to a deployed app can't reveal it via the password field's
 # "show" toggle or by viewing the page.
 SERVER_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
-if "user_api_key" not in st.session_state:
-    st.session_state.user_api_key = ""
-
+# Get store from session state
+store = st.session_state.store
 
 def render_source_card(i: int, s: dict):
     """Render one retrieved chunk as a library-index-card-styled block."""

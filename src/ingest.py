@@ -40,8 +40,8 @@ def load_txt_bytes(file_bytes: bytes, filename: str) -> str:
 def chunk_text(
     raw_text: str,
     source: str,
-    chunk_size: int = 500,
-    overlap: int = 50,
+    chunk_size: int = 600,
+    overlap: int = 150,
 ) -> List[Chunk]:
     """
     Split text into overlapping chunks of `chunk_size` words.
